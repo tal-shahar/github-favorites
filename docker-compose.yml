@@ -1,0 +1,102 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: github_favorites_app
+      POSTGRES_PASSWORD: github_favorites_password
+      POSTGRES_DB: github_favorites
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U github_favorites_app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: github_favorites
+      RABBITMQ_DEFAULT_PASS: github_favorites_password
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  api:
+    build:
+      context: .
+      dockerfile: GitHubFavoritesAPI/FavoritesAPI/Dockerfile
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=github_favorites;Username=github_favorites_app;Password=github_favorites_password
+      Redis__ConnectionString: redis:6379
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__VirtualHost: /
+      RabbitMq__UserName: github_favorites
+      RabbitMq__Password: github_favorites_password
+      GitHub__PersonalAccessToken: ${GITHUB_PAT:-replace-with-personal-token}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-local-dev-very-secret-signing-key-change-me}
+    ports:
+      - "8080:8080"
+
+  worker:
+    build:
+      context: .
+      dockerfile: GitHubFavoritesWorkers/RepositoryAnalysisWorker/Dockerfile
+    depends_on:
+      - postgres
+      - rabbitmq
+    environment:
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=github_favorites;Username=github_favorites_app;Password=github_favorites_password
+      GitHub__PersonalAccessToken: ${GITHUB_PAT:-replace-with-personal-token}
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__VirtualHost: /
+      RabbitMq__UserName: github_favorites
+      RabbitMq__Password: github_favorites_password
+
+  web:
+    build:
+      context: .
+      dockerfile: GitHubFavoritesSite/Dockerfile
+    depends_on:
+      - api
+    ports:
+      - "8081:80"
+
+  pgadmin:
+    image: dpage/pgadmin4:8.11
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+  redis_data:
+
