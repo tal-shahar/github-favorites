@@ -364,3 +364,6 @@ FodyWeavers.xsd
 .idea/
 *.sln.iml
 
+# Local task artifacts
+Task/
+
