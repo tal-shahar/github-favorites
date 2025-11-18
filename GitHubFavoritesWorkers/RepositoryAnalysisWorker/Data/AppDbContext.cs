@@ -19,6 +19,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             builder.ToTable("favorites");
             builder.HasKey(x => x.Id);
             builder.Property(x => x.RepoId).HasColumnName("repo_id");
+            builder.Property(x => x.Stars).HasColumnName("stars");
             builder.Property(x => x.RepoUpdatedAtUtc).HasColumnName("repo_updated_at");
             builder.Property(x => x.CreatedAtUtc).HasColumnName("created_at");
         });

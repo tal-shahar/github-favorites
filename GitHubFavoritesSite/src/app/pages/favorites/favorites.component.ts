@@ -69,9 +69,9 @@ type FavoritesState = {
           </div>
 
           <ng-template #pendingState>
-            <mat-chip color="warn" selected>
+            <mat-chip color="warn" selected class="pending-chip">
               <mat-icon>hourglass_empty</mat-icon>
-              Analysis pending
+              <span>Analysis pending</span>
             </mat-chip>
           </ng-template>
 
@@ -188,6 +188,24 @@ type FavoritesState = {
         margin-bottom: 0.15rem;
       }
 
+      .pending-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+      }
+
+      :host ::ng-deep .mat-mdc-standard-chip:not(.mdc-evolution-chip--disabled) {
+        display: inline-flex;
+        align-items: center;
+        vertical-align: middle;
+      }
+
+      :host ::ng-deep .mat-mdc-standard-chip:not(.mdc-evolution-chip--disabled) .mdc-evolution-chip__text-label {
+        display: inline-flex;
+        align-items: center;
+        line-height: 1.5;
+      }
+
       .empty-state {
         margin-top: 2rem;
         text-align: center;
@@ -197,6 +215,8 @@ type FavoritesState = {
   ]
 })
 export class FavoritesComponent {
+  protected readonly Object = Object;
+
   private readonly api = inject(FavoritesApiService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);

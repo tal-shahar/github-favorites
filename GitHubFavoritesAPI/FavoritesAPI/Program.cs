@@ -7,6 +7,7 @@ using FavoritesAPI.Services.Contracts;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 
@@ -28,6 +29,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 var redisOptions = configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>() ?? new RedisOptions();
 builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
     ConnectionMultiplexer.Connect(redisOptions.ConnectionString));
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisOptions.ConnectionString;
+    options.InstanceName = "favorites-api:";
+});
 
 builder.Services.AddHttpClient<IGitHubSearchService, GitHubSearchService>();
 
@@ -58,6 +64,13 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(10);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
 
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
@@ -126,6 +139,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors(CorsPolicyName);
+app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 

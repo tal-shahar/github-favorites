@@ -1,10 +1,14 @@
 using System;
+using FavoritesAPI.Data;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace FavoritesAPI.Migrations
 {
+    [DbContext(typeof(AppDbContext))]
+    [Migration("20241117000100_InitialCreate")]
     public partial class InitialCreate : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

@@ -1,5 +1,5 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, computed, inject, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -10,6 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject, debounceTime, takeUntil } from 'rxjs';
 import { finalize } from 'rxjs/operators';
 import { FavoritesApiService } from '../../services/favorites-api.service';
 import { FavoriteRequest, RepositorySearchResult } from '../../models/github.models';
@@ -43,17 +44,15 @@ type SearchState = {
         <mat-label>Search GitHub repositories</mat-label>
         <input
           matInput
+          class="search-input"
           placeholder="e.g. angular cache"
           [formControl]="searchControl"
+          (input)="onQueryChange()"
           (keyup.enter)="search()"
         />
         <mat-error *ngIf="searchControl.hasError('required')">Search term is required</mat-error>
         <mat-error *ngIf="searchControl.hasError('minlength')">Type at least 2 characters</mat-error>
       </mat-form-field>
-      <button mat-flat-button color="primary" (click)="search()" [disabled]="state().loading">
-        <mat-icon>search</mat-icon>
-        <span>Search</span>
-      </button>
     </section>
 
     <mat-progress-bar *ngIf="state().loading" mode="indeterminate"></mat-progress-bar>
@@ -108,14 +107,39 @@ type SearchState = {
     `
       .search-header {
         display: flex;
-        gap: 1rem;
-        align-items: flex-end;
-        flex-wrap: wrap;
+        flex-direction: column;
+        gap: 0.5rem;
       }
 
       .query-field {
         flex: 1;
         min-width: 280px;
+      }
+
+      :host ::ng-deep .query-field .mat-mdc-text-field-wrapper {
+        background-color: #d3e4ff;
+        border-radius: 10px;
+        box-shadow: 0 12px 30px rgba(122, 166, 255, 0.35);
+      }
+
+      :host ::ng-deep .query-field .mdc-notched-outline__leading,
+      :host ::ng-deep .query-field .mdc-notched-outline__notch,
+      :host ::ng-deep .query-field .mdc-notched-outline__trailing {
+        border-color: #bcd3ff;
+      }
+
+      :host ::ng-deep .query-field.mat-focused .mdc-notched-outline__leading,
+      :host ::ng-deep .query-field.mat-focused .mdc-notched-outline__notch,
+      :host ::ng-deep .query-field.mat-focused .mdc-notched-outline__trailing {
+        border-color: #8fc2ff;
+      }
+
+      .search-input {
+        color: #0d2b66;
+      }
+
+      .search-input::placeholder {
+        color: rgba(13, 43, 102, 0.65);
       }
 
       .results-grid {
@@ -124,6 +148,25 @@ type SearchState = {
         grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
         gap: 1rem;
       }
+
+      :host ::ng-deep .mat-mdc-card {
+        background-color: #182235;
+        color: #e6eef7;
+      }
+
+      :host ::ng-deep .mat-mdc-card.mdc-card.ng-star-inserted {
+        background-color: #182235;
+        color: #e6eef7;
+      }
+
+      :host ::ng-deep .mat-mdc-card-subtitle {
+        color: #e6eef7;
+      }
+
+      :host ::ng-deep .mat-mdc-card.mdc-card.ng-star-inserted .mat-mdc-card-subtitle {
+        color: #e6eef7;
+      }
+
 
       .repo-meta {
         display: flex;
@@ -155,7 +198,7 @@ type SearchState = {
     `
   ]
 })
-export class SearchComponent {
+export class SearchComponent implements OnDestroy {
   private readonly api = inject(FavoritesApiService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);
@@ -177,7 +220,19 @@ export class SearchComponent {
 
   readonly disableNextPage = computed(() => this.state().results.length < this.state().perPage);
 
+  private readonly destroy$ = new Subject<void>();
+  private readonly inputChanges$ = new Subject<void>();
+
+  constructor() {
+    this.inputChanges$
+      .pipe(debounceTime(300), takeUntil(this.destroy$))
+      .subscribe(() => this.search());
+  }
+
   search(page = 1): void {
+    if (page === 1 && this.state().loading) {
+      return;
+    }
     if (this.searchControl.invalid) {
       this.searchControl.markAsTouched();
       return;
@@ -254,6 +309,23 @@ export class SearchComponent {
           this.snackBar.open(detail, 'Dismiss', { duration: 3000 });
         }
       });
+  }
+
+  onQueryChange(): void {
+    const trimmed = this.searchControl.value.trim();
+    if (!trimmed) {
+      this.state.update(current => ({ ...current, results: [], lastQuery: '', page: 1 }));
+      return;
+    }
+    if (trimmed.length >= 2) {
+      this.inputChanges$.next();
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.inputChanges$.complete();
   }
 }
 

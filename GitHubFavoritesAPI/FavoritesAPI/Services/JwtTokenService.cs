@@ -36,7 +36,10 @@ public sealed class JwtTokenService(IOptions<JwtOptions> options) : IJwtTokenSer
         return new LoginResponse
         {
             Token = handler.WriteToken(token),
-            ExpiresAtUtc = expires
+            ExpiresAtUtc = expires,
+            Email = user.Email,
+            Username = user.GitHubUsername,
+            AvatarUrl = user.AvatarUrl
         };
     }
 }

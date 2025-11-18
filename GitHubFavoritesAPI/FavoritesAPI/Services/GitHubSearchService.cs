@@ -3,6 +3,7 @@ using FavoritesAPI.Models.Search;
 using FavoritesAPI.Options;
 using FavoritesAPI.Services.Contracts;
 using Microsoft.Extensions.Options;
+using System.Text.Json.Serialization;
 
 namespace FavoritesAPI.Services;
 
@@ -49,7 +50,10 @@ public sealed class GitHubSearchService : IGitHubSearchService
         }
 
         var json = await response.Content.ReadAsStreamAsync(cancellationToken);
-        var result = await JsonSerializer.DeserializeAsync<GitHubSearchResponse>(json, cancellationToken: cancellationToken)
+        var result = await JsonSerializer.DeserializeAsync<GitHubSearchResponse>(
+                json,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true },
+                cancellationToken)
             ?? new GitHubSearchResponse();
 
         return result.Items.Select(item => new RepositorySearchResult
@@ -63,15 +67,21 @@ public sealed class GitHubSearchService : IGitHubSearchService
         }).ToList();
     }
 
-    private sealed record GitHubSearchResponse(IReadOnlyList<GitHubRepository> Items)
+    private sealed record GitHubSearchResponse([property: JsonPropertyName("items")] IReadOnlyList<GitHubRepository> Items)
     {
         public GitHubSearchResponse() : this(Array.Empty<GitHubRepository>())
         {
         }
     }
 
-    private sealed record GitHubRepository(long Id, string Name, GitHubOwner Owner, int StargazersCount, DateTime UpdatedAt, string? Description);
+    private sealed record GitHubRepository(
+        [property: JsonPropertyName("id")] long Id,
+        [property: JsonPropertyName("name")] string Name,
+        [property: JsonPropertyName("owner")] GitHubOwner Owner,
+        [property: JsonPropertyName("stargazers_count")] int StargazersCount,
+        [property: JsonPropertyName("updated_at")] DateTime UpdatedAt,
+        [property: JsonPropertyName("description")] string? Description);
 
-    private sealed record GitHubOwner(string Login);
+    private sealed record GitHubOwner([property: JsonPropertyName("login")] string Login);
 }
 

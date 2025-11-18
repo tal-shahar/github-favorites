@@ -364,6 +364,9 @@ FodyWeavers.xsd
 .idea/
 *.sln.iml
 
+# .NET local tools
+.dotnet-tools/
+
 # Local task artifacts
 Task/
 

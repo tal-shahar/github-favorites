@@ -24,6 +24,8 @@ export class AuthService {
   });
 
   readonly currentUserEmail = computed(() => this.state()?.email ?? '');
+  readonly currentUsername = computed(() => this.state()?.username ?? '');
+  readonly currentAvatarUrl = computed(() => this.state()?.avatarUrl ?? '');
 
   constructor(private readonly http: HttpClient, private readonly router: Router) {}
 
@@ -49,15 +51,41 @@ export class AuthService {
     return this.state()?.token ?? null;
   }
 
-  private persistSession(response: LoginResponse, email: string): void {
+  private persistSession(response: LoginResponse, email?: string): void {
     const payload: AuthState = {
-      email,
+      email: email ?? response.email,
       token: response.token,
-      expiresAtUtc: response.expiresAtUtc
+      expiresAtUtc: response.expiresAtUtc,
+      username: response.username,
+      avatarUrl: response.avatarUrl
     };
 
     this.state.set(payload);
     localStorage.setItem(this.storageKey, JSON.stringify(payload));
+  }
+
+  loginWithToken(token: string, email?: string, username?: string, avatarUrl?: string): void {
+    // Decode JWT to get expiration and email if not provided
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const expiresAtUtc = new Date(payload.exp * 1000).toISOString();
+      
+      const response: LoginResponse = {
+        token,
+        expiresAtUtc,
+        email: email ?? payload.email ?? '',
+        username: username,
+        avatarUrl: avatarUrl
+      };
+      
+      this.persistSession(response);
+    } catch (error) {
+      console.error('Failed to decode token', error);
+    }
+  }
+
+  initiateGitHubOAuth(): void {
+    window.location.href = `${this.apiBaseUrl}/auth/github`;
   }
 
   private restore(): AuthState | null {

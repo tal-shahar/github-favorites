@@ -29,16 +29,16 @@ public sealed class RepositoryAnalysisService(AppDbContext dbContext, ILogger<Re
             dbContext.RepositoryAnalyses.Add(analysis);
         }
 
-        analysis.License = metadata.License;
-        analysis.Topics = metadata.Topics;
-        analysis.Languages = metadata.Languages;
-        analysis.PrimaryLanguage = metadata.PrimaryLanguage;
+        analysis.License = metadata.License ?? string.Empty;
+        analysis.Topics = metadata.Topics ?? new List<string>();
+        analysis.Languages = metadata.Languages ?? new Dictionary<string, long>();
+        analysis.PrimaryLanguage = metadata.PrimaryLanguage ?? string.Empty;
         analysis.ReadmeLength = metadata.ReadmeLength;
         analysis.OpenIssues = metadata.OpenIssues;
         analysis.Forks = metadata.Forks;
         analysis.StarsSnapshot = metadata.StarsSnapshot;
         analysis.ActivityDays = metadata.ActivityDays;
-        analysis.DefaultBranch = metadata.DefaultBranch;
+        analysis.DefaultBranch = metadata.DefaultBranch ?? string.Empty;
         analysis.HealthScore = HealthScoreCalculator.Calculate(
             metadata.StarsSnapshot,
             metadata.ActivityDays,

@@ -23,7 +23,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 .HasMaxLength(200)
                 .IsRequired();
             builder.HasIndex(x => x.Email).IsUnique();
-            builder.Property(x => x.PasswordHash).IsRequired();
+            builder.HasIndex(x => x.GitHubId).IsUnique().HasFilter("\"GitHubId\" IS NOT NULL");
+            builder.Property(x => x.PasswordHash).IsRequired(false);
+            builder.Property(x => x.GitHubUsername).HasMaxLength(200);
+            builder.Property(x => x.AvatarUrl).HasMaxLength(500);
+            builder.Property(x => x.AccessToken).HasMaxLength(500);
             builder.Property(x => x.CreatedAtUtc)
                 .HasColumnName("created_at")
                 .HasDefaultValueSql("now() at time zone 'utc'");

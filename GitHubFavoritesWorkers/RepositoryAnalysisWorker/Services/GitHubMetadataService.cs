@@ -42,15 +42,15 @@ public sealed class GitHubMetadataService : IGitHubMetadataService
         var metadata = new RepositoryMetadata
         {
             License = repo.License?.SpdxId ?? string.Empty,
-            Topics = topicsResponse.Names,
-            Languages = languages,
+            Topics = topicsResponse?.Names ?? new List<string>(),
+            Languages = languages ?? new Dictionary<string, long>(),
             PrimaryLanguage = repo.Language ?? string.Empty,
             ReadmeLength = readmeLength,
             OpenIssues = repo.OpenIssuesCount,
             Forks = repo.ForksCount,
             StarsSnapshot = repo.StargazersCount,
             ActivityDays = (int)Math.Max(0, (DateTime.UtcNow - repo.PushedAt.ToUniversalTime()).TotalDays),
-            DefaultBranch = repo.DefaultBranch,
+            DefaultBranch = repo.DefaultBranch ?? string.Empty,
             RetrievedAtUtc = DateTime.UtcNow
         };
 

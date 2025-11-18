@@ -6,11 +6,16 @@ export interface LoginRequest {
 export interface LoginResponse {
   token: string;
   expiresAtUtc: string;
+  email: string;
+  username?: string;
+  avatarUrl?: string;
 }
 
 export interface AuthState {
   email: string;
   token: string;
   expiresAtUtc: string;
+  username?: string;
+  avatarUrl?: string;
 }
 
