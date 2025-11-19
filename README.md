@@ -84,13 +84,18 @@ Documented in `RepositoryAnalysisWorker.Services.HealthScoreCalculator` and used
 
 ```
 healthScore =
-    starsSnapshot * 0.4 +
-    clamp(30 - activityDays, 0, 30) * 1 +
-    (forks / (openIssues + 1)) * 0.6 +
-    (readmeLength > 1000 ? 2 : 1)
+    starsScore(starsSnapshot)      // log-scale vs 50k stars, up to 40 pts
+    + activityScore(activityDays)  // recency over the past year, up to 30 pts
+    + engagementScore(forks, openIssues) // forks/issues balance, up to 20 pts
+    + readmeScore(readmeLength)    // README depth vs 5k chars, up to 10 pts
 ```
 
-The value is rounded to two decimals when returned to the UI. The README plus worker logs help reason about analyses over time.
+- `starsScore = log10(stars + 1) / log10(50001) * 40`
+- `activityScore = (1 - clamp(activityDays, 0, 365) / 365) * 30`
+- `engagementScore = clamp((forks / (openIssues + 1)) / 4, 0, 1) * 20`
+- `readmeScore = clamp(readmeLength / 5000, 0, 1) * 10`
+
+The combined score is capped at 100, rounded to two decimals, and the SPA surfaces it as `Health nn/100` with a tooltip that recaps the four factors.
 
 ### Frontend Highlights
 - Standalone Angular 17 app with Angular Material.
@@ -100,11 +105,13 @@ The value is rounded to two decimals when returned to the UI. The README plus wo
   - Pagination (page, perPage)
   - Results display with favorite button
   - Optimistic UI updates when favoriting
+  - Repo titles deep-link to GitHub and show the last push timestamp
 - **Favorites page**: 
   - Lists all user favorites
   - Shows pending state while analysis is processing
   - Displays full analysis when ready (topics, languages, health score, metrics)
   - Remove favorite functionality
+  - Health chip now surfaces `Health nn/100` with a tooltip describing the scoring blend, and repo headers link out to GitHub
 - HTTP interceptor injects JWTs automatically, `MatSnackBar` surfaces API errors, and Angular tests cover the API client.
 
 ### API Surface
