@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 using RepositoryAnalysisWorker.Models;
 using RepositoryAnalysisWorker.Options;
@@ -49,7 +50,9 @@ public sealed class GitHubMetadataService : IGitHubMetadataService
             OpenIssues = repo.OpenIssuesCount,
             Forks = repo.ForksCount,
             StarsSnapshot = repo.StargazersCount,
-            ActivityDays = (int)Math.Max(0, (DateTime.UtcNow - repo.PushedAt.ToUniversalTime()).TotalDays),
+            ActivityDays = repo.PushedAt.HasValue && repo.PushedAt.Value != DateTime.MinValue
+                ? (int)Math.Round(Math.Max(0, (DateTime.UtcNow - repo.PushedAt.Value.ToUniversalTime()).TotalDays))
+                : 0,
             DefaultBranch = repo.DefaultBranch ?? string.Empty,
             RetrievedAtUtc = DateTime.UtcNow
         };
@@ -59,27 +62,39 @@ public sealed class GitHubMetadataService : IGitHubMetadataService
 
     private async Task<int> FetchReadmeLength(string owner, string name, CancellationToken cancellationToken)
     {
-        var response = await _httpClient.GetAsync($"/repos/{owner}/{name}/readme", cancellationToken);
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            _logger.LogWarning("Failed to fetch README for {Owner}/{Repo}: {Status}", owner, name, response.StatusCode);
+            var response = await _httpClient.GetAsync($"/repos/{owner}/{name}/readme", cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to fetch README for {Owner}/{Repo}: {Status}", owner, name, response.StatusCode);
+                return 0;
+            }
+
+            var json = await response.Content.ReadAsStreamAsync(cancellationToken);
+            var payload = await JsonSerializer.DeserializeAsync<ReadmeResponse>(json, cancellationToken: cancellationToken);
+            if (payload is null)
+            {
+                _logger.LogWarning("Failed to deserialize README response for {Owner}/{Repo}", owner, name);
+                return 0;
+            }
+
+            if (payload.Content is null)
+            {
+                _logger.LogInformation("README for {Owner}/{Repo} has no content, using size: {Size}", owner, name, payload.Size);
+                return payload.Size;
+            }
+
+            var buffer = Convert.FromBase64String(payload.Content);
+            var length = Encoding.UTF8.GetString(buffer).Length;
+            _logger.LogInformation("README for {Owner}/{Repo} length: {Length}", owner, name, length);
+            return length;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching README for {Owner}/{Repo}", owner, name);
             return 0;
         }
-
-        var json = await response.Content.ReadAsStreamAsync(cancellationToken);
-        var payload = await JsonSerializer.DeserializeAsync<ReadmeResponse>(json, cancellationToken: cancellationToken);
-        if (payload is null)
-        {
-            return 0;
-        }
-
-        if (payload.Content is null)
-        {
-            return payload.Size;
-        }
-
-        var buffer = Convert.FromBase64String(payload.Content);
-        return Encoding.UTF8.GetString(buffer).Length;
     }
 
     private async Task<T> GetAsync<T>(string path, CancellationToken cancellationToken)
@@ -103,18 +118,18 @@ public sealed class GitHubMetadataService : IGitHubMetadataService
     }
 
     private sealed record RepositoryResponse(
-        int StargazersCount,
-        int OpenIssuesCount,
-        int ForksCount,
-        DateTime PushedAt,
-        string DefaultBranch,
-        string? Language,
-        LicenseInfo? License);
+        [property: JsonPropertyName("stargazers_count")] int StargazersCount,
+        [property: JsonPropertyName("open_issues_count")] int OpenIssuesCount,
+        [property: JsonPropertyName("forks_count")] int ForksCount,
+        [property: JsonPropertyName("pushed_at")] DateTime? PushedAt,
+        [property: JsonPropertyName("default_branch")] string DefaultBranch,
+        [property: JsonPropertyName("language")] string? Language,
+        [property: JsonPropertyName("license")] LicenseInfo? License);
 
-    private sealed record LicenseInfo(string? SpdxId);
+    private sealed record LicenseInfo([property: JsonPropertyName("spdx_id")] string? SpdxId);
 
-    private sealed record TopicsResponse(List<string> Names);
+    private sealed record TopicsResponse([property: JsonPropertyName("names")] List<string> Names);
 
-    private sealed record ReadmeResponse(int Size, string? Content);
+    private sealed record ReadmeResponse([property: JsonPropertyName("size")] int Size, [property: JsonPropertyName("content")] string? Content);
 }
 

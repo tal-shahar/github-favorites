@@ -64,8 +64,13 @@ type SearchState = {
     <section class="results-grid">
       <mat-card *ngFor="let repo of state().results">
         <mat-card-header>
-          <mat-card-title>{{ repo.owner }}/{{ repo.name }}</mat-card-title>
-          <mat-card-subtitle>Updated {{ repo.updatedAtUtc | date: 'medium' }}</mat-card-subtitle>
+          <mat-card-title>
+            <a [href]="'https://github.com/' + repo.owner + '/' + repo.name" target="_blank" rel="noopener noreferrer" class="repo-link">
+              {{ repo.owner }}/{{ repo.name }}
+              <mat-icon class="external-icon">open_in_new</mat-icon>
+            </a>
+          </mat-card-title>
+          <mat-card-subtitle>Last push {{ repo.updatedAtUtc | date: 'medium' }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <p>{{ repo.description || 'No description available.' }}</p>
@@ -194,6 +199,26 @@ type SearchState = {
         margin-top: 2rem;
         text-align: center;
         opacity: 0.8;
+      }
+
+      .repo-link {
+        color: inherit;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: opacity 0.2s;
+      }
+
+      .repo-link:hover {
+        opacity: 0.8;
+      }
+
+      .external-icon {
+        font-size: 1rem;
+        width: 1rem;
+        height: 1rem;
+        opacity: 0.7;
       }
     `
   ]

@@ -39,7 +39,9 @@ public sealed class GitHubSearchService : IGitHubSearchService
 
     public async Task<IReadOnlyCollection<RepositorySearchResult>> SearchAsync(string query, int page, int perPage, CancellationToken cancellationToken)
     {
-        var response = await _httpClient.GetAsync($"/search/repositories?q={Uri.EscapeDataString(query)}&page={page}&per_page={perPage}",
+        // Format query to search for whole words in repository name
+        var formattedQuery = FormatSearchQuery(query);
+        var response = await _httpClient.GetAsync($"/search/repositories?q={Uri.EscapeDataString(formattedQuery)}&page={page}&per_page={perPage}",
             cancellationToken);
 
         if (!response.IsSuccessStatusCode)
@@ -63,8 +65,21 @@ public sealed class GitHubSearchService : IGitHubSearchService
             Owner = item.Owner.Login,
             Description = item.Description ?? string.Empty,
             Stars = item.StargazersCount,
-            UpdatedAtUtc = item.UpdatedAt
+            UpdatedAtUtc = item.PushedAt ?? item.UpdatedAt
         }).ToList();
+    }
+
+    private static string FormatSearchQuery(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return string.Empty;
+        }
+
+        // Split by spaces and format each word to search as whole word in name
+        var words = query.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        var formattedWords = words.Select(word => $"{word.Trim()} in:name");
+        return string.Join(" ", formattedWords);
     }
 
     private sealed record GitHubSearchResponse([property: JsonPropertyName("items")] IReadOnlyList<GitHubRepository> Items)
@@ -80,6 +95,7 @@ public sealed class GitHubSearchService : IGitHubSearchService
         [property: JsonPropertyName("owner")] GitHubOwner Owner,
         [property: JsonPropertyName("stargazers_count")] int StargazersCount,
         [property: JsonPropertyName("updated_at")] DateTime UpdatedAt,
+        [property: JsonPropertyName("pushed_at")] DateTime? PushedAt,
         [property: JsonPropertyName("description")] string? Description);
 
     private sealed record GitHubOwner([property: JsonPropertyName("login")] string Login);

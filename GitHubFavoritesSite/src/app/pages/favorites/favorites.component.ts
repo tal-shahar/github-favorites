@@ -4,6 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -25,7 +26,8 @@ type FavoritesState = {
     MatButtonModule,
     MatIconModule,
     MatProgressBarModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    MatTooltipModule
   ],
   template: `
     <section class="header">
@@ -47,7 +49,12 @@ type FavoritesState = {
     <section class="favorites-grid">
       <mat-card *ngFor="let favorite of state().items">
         <mat-card-header>
-          <mat-card-title>{{ favorite.owner }}/{{ favorite.name }}</mat-card-title>
+          <mat-card-title>
+            <a [href]="'https://github.com/' + favorite.owner + '/' + favorite.name" target="_blank" rel="noopener noreferrer" class="repo-link">
+              {{ favorite.owner }}/{{ favorite.name }}
+              <mat-icon class="external-icon">open_in_new</mat-icon>
+            </a>
+          </mat-card-title>
           <mat-card-subtitle>Tracked since {{ favorite.createdAtUtc | date: 'medium' }}</mat-card-subtitle>
         </mat-card-header>
 
@@ -60,11 +67,17 @@ type FavoritesState = {
             </mat-chip>
             <mat-chip color="accent" selected>
               <mat-icon>event</mat-icon>
-              updated {{ favorite.updatedAtUtc | date: 'shortDate' }}
+              last push {{ favorite.updatedAtUtc | date: 'shortDate' }}
             </mat-chip>
-            <mat-chip *ngIf="favorite.analysis; else pendingState" color="primary" selected>
+            <mat-chip
+              *ngIf="favorite.analysis; else pendingState"
+              color="primary"
+              selected
+              matTooltip="0-100 blend of stars, recent pushes, forks/issues, and README depth"
+              matTooltipShowDelay="250"
+            >
               <mat-icon>favorite</mat-icon>
-              Health {{ favorite.analysis!.healthScore | number : '1.0-2' }}
+              Health {{ favorite.analysis!.healthScore | number : '1.0-0' }}/100
             </mat-chip>
           </div>
 
@@ -102,7 +115,7 @@ type FavoritesState = {
             </div>
             <div>
               <p class="label">Activity</p>
-              <p>{{ analysis.activityDays }} days since last push</p>
+              <p>{{ formatActivity(analysis.activityDays) }}</p>
             </div>
             <div>
               <p class="label">Default branch</p>
@@ -127,6 +140,11 @@ type FavoritesState = {
               <span *ngIf="!Object.keys(analysis.languages ?? {}).length">No language data yet.</span>
             </div>
           </section>
+
+          <p *ngIf="favorite.analysis" class="health-note">
+            Scores range from 0 (needs attention) to 100 (excellent) and combine stars, how recently the default branch was pushed,
+            fork-to-issue balance, and README depth.
+          </p>
         </mat-card-content>
 
         <mat-card-actions>
@@ -174,6 +192,12 @@ type FavoritesState = {
         margin-bottom: 0.75rem;
       }
 
+      .health-note {
+        margin-top: 0.75rem;
+        font-size: 0.875rem;
+        opacity: 0.8;
+      }
+
       .chip-row {
         display: flex;
         flex-wrap: wrap;
@@ -210,6 +234,26 @@ type FavoritesState = {
         margin-top: 2rem;
         text-align: center;
         opacity: 0.8;
+      }
+
+      .repo-link {
+        color: inherit;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: opacity 0.2s;
+      }
+
+      .repo-link:hover {
+        opacity: 0.8;
+      }
+
+      .external-icon {
+        font-size: 1rem;
+        width: 1rem;
+        height: 1rem;
+        opacity: 0.7;
       }
     `
   ]
@@ -272,6 +316,34 @@ export class FavoritesComponent {
 
   languageEntries(analysis: AnalysisDto): [string, number][] {
     return Object.entries(analysis.languages ?? {});
+  }
+
+  formatActivity(days: number): string {
+    if (days > 365) {
+      const years = Math.floor(days / 365);
+      const remainingAfterYears = days % 365;
+      const months = Math.floor(remainingAfterYears / 30);
+      const remainingDays = remainingAfterYears % 30;
+      
+      const parts: string[] = [];
+      parts.push(`${years} ${years === 1 ? 'year' : 'years'}`);
+      if (months > 0) {
+        parts.push(`${months} ${months === 1 ? 'month' : 'months'}`);
+      }
+      if (remainingDays > 0) {
+        parts.push(`${remainingDays} ${remainingDays === 1 ? 'day' : 'days'}`);
+      }
+      return `${parts.join(' ')} since last push`;
+    } else if (days > 30) {
+      const months = Math.floor(days / 30);
+      const remainingDays = days % 30;
+      
+      if (remainingDays > 0) {
+        return `${months} ${months === 1 ? 'month' : 'months'} ${remainingDays} ${remainingDays === 1 ? 'day' : 'days'} since last push`;
+      }
+      return `${months} ${months === 1 ? 'month' : 'months'} since last push`;
+    }
+    return `${days} ${days === 1 ? 'day' : 'days'} since last push`;
   }
 }
 
