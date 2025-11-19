@@ -55,9 +55,9 @@ services:
       RabbitMq__VirtualHost: /
       RabbitMq__UserName: github_favorites
       RabbitMq__Password: github_favorites_password
-      GitHub__ClientId: Ov23liZnU77HMi1uhf3k
-      GitHub__ClientSecret: 433772d9f2acb7d89b8a721308860462b444696a
-      GitHub__PersonalAccessToken: ${GITHUB_PAT:-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}
+      GitHub__ClientId: ${GITHUB_CLIENT_ID:-your_github_oauth_client_id}
+      GitHub__ClientSecret: ${GITHUB_CLIENT_SECRET:-your_github_oauth_client_secret}
+      GitHub__PersonalAccessToken: ${GITHUB_PAT:-ghp_your_personal_access_token}
       Jwt__SigningKey: ${JWT_SIGNING_KEY:-local-dev-very-secret-signing-key-change-me}
     ports:
       - "5092:8080"
@@ -71,7 +71,7 @@ services:
       - rabbitmq
     environment:
       ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=github_favorites;Username=github_favorites_app;Password=github_favorites_password
-      GitHub__PersonalAccessToken: ${GITHUB_PAT:-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}
+      GitHub__PersonalAccessToken: ${GITHUB_PAT:-ghp_your_personal_access_token}
       RabbitMq__HostName: rabbitmq
       RabbitMq__Port: 5672
       RabbitMq__VirtualHost: /

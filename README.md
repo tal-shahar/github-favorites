@@ -4,14 +4,31 @@ Full-stack sample that lets authenticated users search GitHub repositories, favo
 
 ### Quick Start
 - Install Docker Desktop and ensure ports `5092`, `8081`, `5432`, `5672`, `6379`, `15672`, `5050` are free.
-- Provide a GitHub personal access token (repo read scope) when running compose:
+- Gather GitHub credentials (details below), then run compose:
   ```bash
-  GITHUB_PAT=ghp_xxx docker compose up --build
+  GITHUB_PAT=ghp_xxx \
+  GITHUB_CLIENT_ID=your_client_id \
+  GITHUB_CLIENT_SECRET=your_client_secret \
+  docker compose up --build
   ```
 - Open `http://localhost:8081` (web) and log in with the seeded demo user:
   - Email: `demo@githubfavorites.local`
   - Password: `ChangeMe123!`
-- Alternatively, use GitHub OAuth login via the login page.
+- Alternatively, use GitHub OAuth login via the login page once your OAuth app is configured.
+
+### Configuring GitHub Credentials
+| Credential | Where to create it | Required scopes/settings | Where to place it in this repo |
+| --- | --- | --- | --- |
+| Personal Access Token (PAT) | GitHub → Settings → **Developer settings** → **Personal access tokens** → **Fine-grained tokens** (or classic) ([link](https://github.com/settings/tokens)) | `repo` (read) scope is enough; keep expiration short for local dev | Set as env var `GITHUB_PAT` (preferred). Also replace `GitHub:PersonalAccessToken` in `GitHubFavoritesAPI/FavoritesAPI/appsettings.json` if you need a hard-coded fallback. |
+| OAuth Client ID/Secret | GitHub → Settings → **Developer settings** → **OAuth Apps** → **New OAuth App** | Homepage `http://localhost:8081`, Authorization callback URL `http://localhost:5092/auth/github/callback` | Set as env vars `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`. They flow into the API via `docker-compose.yml` and mirror placeholders in `GitHubFavoritesAPI/FavoritesAPI/appsettings.json`. |
+
+Use the tokens page above to mint both a PAT and (when logged into a GitHub developer account) to jump into the OAuth Apps section for generating the client id/secret pair. That page is where GitHub exposes the one-time secret string—copy it immediately because GitHub will not show it again later. For OAuth, you can always issue a new client secret from the same dashboard if needed.
+
+**Files to update if you prefer editing configs directly instead of env vars:**
+- `GitHubFavoritesAPI/FavoritesAPI/appsettings.json`: `GitHub.PersonalAccessToken`, `GitHub.ClientId`, `GitHub.ClientSecret`.
+- `docker-compose.yml`: Environment block for the `api` and `worker` services references `${GITHUB_PAT}`, `${GITHUB_CLIENT_ID}`, `${GITHUB_CLIENT_SECRET}`; override these or edit the defaults.
+
+Never commit real secrets. Use `.env` files locally (ignored by git) or secret stores (Vault, AWS Secrets Manager, etc.) for deployed environments.
 
 ### Architecture Diagram
 ```mermaid
